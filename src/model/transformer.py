@@ -23,7 +23,7 @@ class Transformer(nn.Module):
         dropout_rate (float) : Probability for the dropout layers
         max_seq_length (int) : Maximum token length for a sequence
         n_head (int) : Number of heads
-        device (str) : Device to run the translation on
+        device (str) : Device to run the model on
 
     Attributes:
         pe (torch.Tensor): Positional encoding tensor

@@ -14,7 +14,7 @@ def translate(input_sequence, model, tokenizer_src, tokenizer_tgt, model_file, m
         tokenizer_tgt: Tokenizer for the target language
         model_file (str): Path to the file containing the trained model weights
         max_seq_length (int): Maximum length of the input sequence
-        device (str): Device to run the translation on
+        device (str): Device to run the model on
     """
 
     sos_token = torch.tensor([tokenizer_src.token_to_id('[SOS]')], dtype=torch.int64)

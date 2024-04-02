@@ -6,15 +6,15 @@ import math
 # E = Embedding dimension
 def get_positional_encoding(d_model: int, max_seq_length: int, device: str):
     """
-    Generate positional encodings.
+    Generate positional encodings
 
     Args:
-        d_model: Dimension of the embedding of the model
-        max_seq_length: Maximum token length for a sequence
-        device: Device to run the translation on
+        d_model (int): Dimension of the embedding of the model
+        max_seq_length (int): Maximum token length for a sequence
+        device (str): Device to run the model on
 
     Returns:
-        torch.Tensor: Positional encoding tensor of shape (1, S, E).
+        torch.Tensor: Positional encoding tensor of shape (1, S, E)
     """
     # (S, E)
     pe = torch.zeros(max_seq_length, d_model)

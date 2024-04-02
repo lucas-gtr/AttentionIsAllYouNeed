@@ -47,7 +47,7 @@ def train(model, model_folder, train_dataloader, val_dataloader, tokenizer_src, 
     initial_epoch = 0
     if preload:
         print(f"Preloading model {preload}")
-        state = torch.load(Path(preload))
+        state = torch.load(Path(preload), map_location=torch.device(device))
         initial_epoch = state['epoch'] + 1
         optimizer.load_state_dict(state["optimizer_state_dict"])
         model.load_state_dict(state["model_state_dict"])
