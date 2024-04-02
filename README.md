@@ -28,7 +28,7 @@ The project offers functionalities for both training Transformer models on bilin
 ### To train a model:
 To train a model, use the following command:
 ```bash
-python main.py train [--src_lang SRC_LANG] [--tgt_lang TGT_LANG] [--preload MODEL_PATH]
+python main.py [--src_lang SRC_LANG] [--tgt_lang TGT_LANG] train [--preload MODEL_PATH]
 ```
 
 * Use `-s` or `--src_lang`  to specify the source language ('en' by default).
@@ -38,7 +38,7 @@ python main.py train [--src_lang SRC_LANG] [--tgt_lang TGT_LANG] [--preload MODE
 ### To translate text:
 To translate text, execute the following command:
 ```bash
-python main.py translate TEXT [--src_lang SRC_LANG] [--tgt_lang TGT_LANG] [--model_path MODEL_PATH]
+python main.py [--src_lang SRC_LANG] [--tgt_lang TGT_LANG] translate TEXT [--model_path MODEL_PATH]
 ```
 
 * `TEXT` refers to the text to be translated.
