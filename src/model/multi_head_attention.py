@@ -2,7 +2,6 @@ import math
 
 import torch
 from torch import nn
-from src.config import d_model, n_head, dropout_rate
 
 
 # B = Batch_size
@@ -13,6 +12,11 @@ from src.config import d_model, n_head, dropout_rate
 class MultiHeadAttention(nn.Module):
     """
     Multi-Head Attention module for Transformer model
+
+    Args:
+        d_model: Dimension of the embedding of the model
+        dropout_rate: Probability for the dropout layers
+        n_head: Number of heads
 
     Attributes:
         d_k (int): Dimension of each head.
@@ -26,8 +30,9 @@ class MultiHeadAttention(nn.Module):
         attention(q, k, v, mask): Perform scaled dot-product attention
         forward(q, k, v, mask): Forward pass of the Multi-Head Attention module
     """
-    def __init__(self):
+    def __init__(self, d_model: int, dropout_rate: float, n_head: int):
         super().__init__()
+        self.n_head = n_head
         self.d_k = d_model // n_head
 
         self.w_q = nn.Linear(d_model, d_model, bias=False)
@@ -85,15 +90,15 @@ class MultiHeadAttention(nn.Module):
         value = self.w_v(v)
 
         # (B, S, E) -> (B, S, N, H) -> (B, N, S, H)
-        query = query.view(query.shape[0], query.shape[1], n_head, self.d_k).transpose(1, 2)
-        key = key.view(key.shape[0], key.shape[1], n_head, self.d_k).transpose(1, 2)
-        value = value.view(value.shape[0], value.shape[1], n_head, self.d_k).transpose(1, 2)
+        query = query.view(query.shape[0], query.shape[1], self.n_head, self.d_k).transpose(1, 2)
+        key = key.view(key.shape[0], key.shape[1], self.n_head, self.d_k).transpose(1, 2)
+        value = value.view(value.shape[0], value.shape[1], self.n_head, self.d_k).transpose(1, 2)
 
         multi_head_attention = self.attention(query, key, value, mask)  # (B, N, S, H)
 
         # (B, N, S, H) -> (B, S, N, H) -> (B, S, E)
         multi_head_attention = multi_head_attention.transpose(1, 2).contiguous().view(multi_head_attention.shape[0], -1,
-                                                                                      n_head * self.d_k)
+                                                                                      self.n_head * self.d_k)
 
         # (B, S, E) -> (B, S, E)
         out = self.w_o(multi_head_attention)

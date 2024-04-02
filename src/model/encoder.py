@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from .multi_head_attention import MultiHeadAttention
 from .feed_forward import FeedForward
-from src.config import d_model, dropout_rate
 
 
 # B = Batch_size
@@ -11,6 +10,11 @@ from src.config import d_model, dropout_rate
 class Encoder(nn.Module):
     """
     Encoder module for Transformer model
+
+    Args:
+        d_model: Dimension of the embedding of the model
+        dropout_rate: Probability for the dropout layers
+        n_head: Number of head
 
     Attributes:
         multi_head_attention_layer (MultiHeadAttention): Multi-head attention layer
@@ -21,13 +25,13 @@ class Encoder(nn.Module):
     Methods:
         forward(q, k, v, mask): Forward pass of the Encoder module
     """
-    def __init__(self):
+    def __init__(self, d_model: int, dropout_rate: float, n_head: int):
         super().__init__()
-        self.multi_head_attention_layer = MultiHeadAttention()
+        self.multi_head_attention_layer = MultiHeadAttention(d_model, dropout_rate, n_head)
         self.ln1 = nn.LayerNorm(d_model)
         self.dropout1 = nn.Dropout(dropout_rate)
 
-        self.ffwd = FeedForward()
+        self.ffwd = FeedForward(d_model, dropout_rate)
         self.ln2 = nn.LayerNorm(d_model)
         self.dropout2 = nn.Dropout(dropout_rate)
 

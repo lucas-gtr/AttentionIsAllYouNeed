@@ -5,7 +5,6 @@ from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
-from src.config import batch_size, max_seq_length
 from .bilingual_dataset import BilingualDataset
 
 
@@ -50,9 +49,14 @@ def get_tokenizer(dataset, model_folder, lang):
     return tokenizer
 
 
-def get_dataset(model_folder):
+def get_dataset(model_folder, max_seq_length, batch_size):
     """
     Get training and validation datasets
+
+    Args:
+        model_folder: Path to the model folder
+        max_seq_length (int): Maximum length for an input sequence
+        batch_size (int): Size of each batch
 
     Returns:
         DataLoader: DataLoader object for training dataset
@@ -72,8 +76,10 @@ def get_dataset(model_folder):
 
     train_dataset_raw, val_dataset_raw = random_split(dataset_raw, [train_size, val_size])
 
-    train_dataset = BilingualDataset(train_dataset_raw, lang_src, tokenizer_src, lang_tgt, tokenizer_tgt)
-    val_dataset = BilingualDataset(val_dataset_raw, lang_src, tokenizer_src, lang_tgt, tokenizer_tgt)
+    train_dataset = BilingualDataset(train_dataset_raw, lang_src, tokenizer_src,
+                                     lang_tgt, tokenizer_tgt, max_seq_length)
+    val_dataset = BilingualDataset(val_dataset_raw, lang_src, tokenizer_src,
+                                   lang_tgt, tokenizer_tgt, max_seq_length)
 
     max_len_src = max(len(tokenizer_src.encode(item['translation'][lang_src]).ids) for item in dataset_raw)
     max_len_tgt = max(len(tokenizer_tgt.encode(item['translation'][lang_tgt]).ids) for item in dataset_raw)

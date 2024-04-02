@@ -1,14 +1,17 @@
 import torch
 import math
 
-from src.config import max_seq_length, d_model, model_device
-
 
 # S = Sequence_length
 # E = Embedding dimension
-def get_positional_encoding():
+def get_positional_encoding(d_model: int, max_seq_length: int, device: str):
     """
     Generate positional encodings.
+
+    Args:
+        d_model: Dimension of the embedding of the model
+        max_seq_length: Maximum token length for a sequence
+        device: Device to run the translation on
 
     Returns:
         torch.Tensor: Positional encoding tensor of shape (1, S, E).
@@ -26,4 +29,4 @@ def get_positional_encoding():
     # (S, E) -> (1, S, E)
     pe = pe.unsqueeze(0)
 
-    return pe.to(model_device)  # (1, S, E)
+    return pe.to(device)  # (1, S, E)

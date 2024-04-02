@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import Dataset
-from src.config import max_seq_length
 
 
 class BilingualDataset(Dataset):
@@ -8,24 +7,30 @@ class BilingualDataset(Dataset):
     Dataset class for handling bilingual data
 
     Args:
-        dataset: Dataset object containing bilingual data
-        tokenizer_src: Tokenizer object for source language
-        tokenizer_tgt: Tokenizer object for target language
+        dataset (Dataset): Dataset object containing bilingual data
+        lang_src (str): Source language identifier
+        tokenizer_src: Tokenizer object for the source language
+        lang_tgt (str): Target language identifier
+        tokenizer_tgt: Tokenizer object for the target language
+        max_seq_length (int): Maximum sequence length for encoder and decoder inputs
 
     Attributes:
-        dataset: Dataset object containing bilingual data
-        tokenizer_src: Tokenizer object for source language
-        tokenizer_tgt: Tokenizer object for target language
-        sos_token: Start-of-sequence token
-        eos_token: End-of-sequence token
-        pad_token: Padding token
+        dataset (Dataset): Dataset object containing bilingual data
+        lang_src (str): Source language identifier
+        tokenizer_src: Tokenizer object for the source language
+        lang_tgt (str): Target language identifier
+        tokenizer_tgt: Tokenizer object for the target language
+        max_seq_length (int): Maximum sequence length for encoder and decoder inputs
+        sos_token (torch.Tensor): Start-of-sequence token
+        eos_token (torch.Tensor): End-of-sequence token
+        pad_token (torch.Tensor): Padding token
 
     Methods:
         __len__(): Returns the number of samples in the dataset
         __getitem__(idx): Retrieves a sample from the dataset
     """
 
-    def __init__(self, dataset, lang_src, tokenizer_src, lang_tgt, tokenizer_tgt):
+    def __init__(self, dataset, lang_src, tokenizer_src, lang_tgt, tokenizer_tgt, max_seq_length):
         self.dataset = dataset
 
         self.lang_src = lang_src
@@ -33,6 +38,8 @@ class BilingualDataset(Dataset):
 
         self.lang_tgt = lang_tgt
         self.tokenizer_tgt = tokenizer_tgt
+
+        self.max_seq_length = max_seq_length
 
         self.sos_token = torch.tensor([tokenizer_src.token_to_id('[SOS]')], dtype=torch.int64)
         self.eos_token = torch.tensor([tokenizer_src.token_to_id('[EOS]')], dtype=torch.int64)
@@ -65,8 +72,8 @@ class BilingualDataset(Dataset):
         enc_input_tokens = self.tokenizer_src.encode(src_text).ids
         dec_input_tokens = self.tokenizer_tgt.encode(tgt_text).ids
 
-        enc_n_padding = max_seq_length - len(enc_input_tokens) - 2
-        dec_n_padding = max_seq_length - len(dec_input_tokens) - 1
+        enc_n_padding = self.max_seq_length - len(enc_input_tokens) - 2
+        dec_n_padding = self.max_seq_length - len(dec_input_tokens) - 1
 
         if enc_n_padding < 0 or dec_n_padding < 0:
             raise ValueError('Sentence is too long')

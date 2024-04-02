@@ -2,24 +2,45 @@ import torch
 from torch import nn
 from pathlib import Path
 
-from .config import epochs, model_device, lr, beta_1, beta_2, epsilon
 from .model.transformer import Transformer
 
 from tqdm import tqdm
 
 
-def train(model_folder, train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt, preload=None):
-    print(f"Using device {model_device}")
-    device = torch.device(model_device)
+def train(model, model_folder, train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt,
+          training_parameters, preload=None):
+    """
+    Train the provided model using the given data loaders and parameters
 
-    model = Transformer(tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(model_device)
+    Args:
+        model (Transformer): The model to be trained
+        model_folder (str): Path to the folder where model weights will be saved
+        train_dataloader (torch.utils.data.DataLoader): DataLoader for training data
+        val_dataloader (torch.utils.data.DataLoader): DataLoader for validation data
+        tokenizer_src: Tokenizer for the source language
+        tokenizer_tgt: Tokenizer for the target language
+        training_parameters (dict): Dictionary containing training parameters
+            'device' (str): Device (CPU or GPU) to run the training on
+            'lr' (float): Learning rate for the optimizer
+            'beta_1' (float): Beta1 parameter for Adam optimizer
+            'beta_2' (float): Beta2 parameter for Adam optimizer
+            'epsilon' (float): Epsilon parameter for Adam optimizer
+            'epochs' (int): Number of epochs to train for
+        preload (str, optional): Path to a pretrained model to resume training from
+    """
+    device = training_parameters['device']
+    print(f"Using device {device}")
+    device = torch.device(device)
 
     print(sum(p.numel() for p in model.parameters()) / 1e6, 'M parameters')
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, betas=(beta_1, beta_2), eps=epsilon)
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=training_parameters['lr'],
+                                 betas=(training_parameters['beta_1'], training_parameters['beta_2']),
+                                 eps=training_parameters['epsilon'])
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
 
@@ -31,7 +52,7 @@ def train(model_folder, train_dataloader, val_dataloader, tokenizer_src, tokeniz
         optimizer.load_state_dict(state["optimizer_state_dict"])
         model.load_state_dict(state["model_state_dict"])
 
-    for epoch in range(initial_epoch, epochs):
+    for epoch in range(initial_epoch, training_parameters['epochs']):
         batch_iterator = tqdm(train_dataloader, desc=f"Processing epoch {epoch:02d}")
         model.train()
         for batch in batch_iterator:
@@ -57,7 +78,8 @@ def train(model_folder, train_dataloader, val_dataloader, tokenizer_src, tokeniz
         Path(weight_folder).mkdir(parents=True, exist_ok=True)
         save_model(epoch, model, optimizer, weight_folder)
 
-        run_validation(model, val_dataloader, tokenizer_tgt, lambda msg: batch_iterator.write(msg), num_examples=5)
+        run_validation(model, val_dataloader, tokenizer_tgt, lambda msg: batch_iterator.write(msg),
+                       device, num_examples=5)
 
 
 def save_model(epoch, model, optimizer, weight_folder):
@@ -69,16 +91,17 @@ def save_model(epoch, model, optimizer, weight_folder):
     }, model_file_name)
 
 
-def run_validation(model: Transformer, validation_dataset, tokenizer_tgt, print_msg, num_examples=2):
+def run_validation(model: Transformer, validation_dataset, tokenizer_tgt, print_msg, device, num_examples=2):
     """
-   Run validation on the provided dataset using the given model
+    Run validation on the provided dataset using the given model
 
-   Args:
-       model (Transformer): Transformer model
-       validation_dataset: Validation dataset
-       tokenizer_tgt: Tokenizer for target language
-       print_msg (callable): Function for printing messages
-       num_examples (int): Number of examples to print
+    Args:
+        model (Transformer): Transformer model
+        validation_dataset: Validation dataset
+        tokenizer_tgt: Tokenizer for target language
+        print_msg (callable): Function for printing messages
+        device: Device (CPU or GPU) to run the training on
+        num_examples (int): Number of examples to print
     """
     model.eval()
 
@@ -92,8 +115,8 @@ def run_validation(model: Transformer, validation_dataset, tokenizer_tgt, print_
     with torch.no_grad():
         for batch in validation_dataset:
             count += 1
-            encoder_input = batch["encoder_input"].to(model_device)
-            encoder_mask = batch["encoder_mask"].to(model_device)
+            encoder_input = batch["encoder_input"].to(device)
+            encoder_mask = batch["encoder_mask"].to(device)
 
             predicted_tokens = model.generate(encoder_input, encoder_mask, sos_idx, eos_idx)
 

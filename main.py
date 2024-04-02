@@ -1,9 +1,12 @@
 import argparse
 from pathlib import Path
+from tokenizers import Tokenizer
 
 from src.dataset.retrieve_dataset import get_dataset
+from src.model.transformer import Transformer
 from src.train_model import train
 from src.translate import translate
+from config import transformer_parameters, training_parameters
 
 
 def parse_args():
@@ -40,20 +43,64 @@ def main():
     model_folder_path = Path(model_folder)
     Path(model_folder).mkdir(parents=True, exist_ok=True)
 
+    device = training_parameters['device']
+
     if args.mode == 'translate':
-        try:
-            weights_path = args.model_path if args.model_path else str(max(model_folder_path.glob("weights/weights_*.pt")))
-            translate(args.text, model_folder, weights_path)
-        except ValueError:
-            print("Error : No weights files found. Please add one or train the model before")
+        # Get languages and tokenizers
+        lang_src, lang_tgt = model_folder.split("_")[1:]
+
+        tokenizer_src_path = Path(f"{model_folder}/tokenizer_{lang_src}")
+        tokenizer_tgt_path = Path(f"{model_folder}/tokenizer_{lang_tgt}")
+
+        if not Path.exists(tokenizer_src_path) or not Path.exists(tokenizer_tgt_path):
+            raise Exception("Model folder is not found.")
+        else:
+            tokenizer_src = Tokenizer.from_file(str(tokenizer_src_path))
+            tokenizer_tgt = Tokenizer.from_file(str(tokenizer_tgt_path))
+
+            model = Transformer(
+                tokenizer_src.get_vocab_size(),
+                tokenizer_tgt.get_vocab_size(),
+                transformer_parameters['n_layers'],
+                transformer_parameters['d_model'],
+                training_parameters['dropout_rate'],
+                transformer_parameters['max_seq_length'],
+                transformer_parameters['n_head'],
+                device
+            ).to(device)
+
+            try:
+                weights_path = args.model_path if args.model_path \
+                    else str(max(model_folder_path.glob("weights/weights_*.pt")))
+                translate(args.text, model, tokenizer_src, tokenizer_tgt, weights_path,
+                          transformer_parameters['max_seq_length'], device)
+            except ValueError:
+                print("Error : No weights files found. Please add one or train the model before")
     else:
-        train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt, model_folder = get_dataset(model_folder)
+        train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt, model_folder = \
+            get_dataset(model_folder, training_parameters['max_seq_length'], training_parameters['batch_size'])
+
+        max_seq_length = max(tokenizer_src.get_vocab_size(), tokenizer_src.get_vocab_size()) + 3
+
+        model = Transformer(
+            tokenizer_src.get_vocab_size(),
+            tokenizer_tgt.get_vocab_size(),
+            transformer_parameters['n_layers'],
+            transformer_parameters['d_model'],
+            training_parameters['dropout_rate'],
+            max_seq_length,
+            transformer_parameters['n_head'],
+            device
+        ).to(device)
+
         if args.preload:
-            weights_path = args.model_path if args.model_path else str(max(model_folder_path.glob("weights/weights_*.pt")))
+            weights_path = args.model_path if args.model_path \
+                else str(max(model_folder_path.glob("weights/weights_*.pt")))
             preload_path = weights_path
         else:
             preload_path = None
-        train(model_folder, train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt, preload_path)
+        train(model, model_folder, train_dataloader, val_dataloader,
+              tokenizer_src, tokenizer_tgt, preload_path)
 
 
 if __name__ == "__main__":

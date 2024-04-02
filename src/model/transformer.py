@@ -5,7 +5,6 @@ from torch import nn
 from .positional_encoding import get_positional_encoding
 from .encoder import Encoder
 from .decoder import Decoder
-from src.config import n_layers, d_model, max_seq_length, model_device, dropout_rate
 
 
 # B = Batch_size
@@ -19,6 +18,12 @@ class Transformer(nn.Module):
     Args:
         vocab_src_size (int): Size of the source vocabulary
         vocab_tgt_size (int): Size of the target vocabulary
+        n_layers (int) : Number of layers for encoders and decoders
+        d_model (int) : Dimension of the embedding of the model
+        dropout_rate (float) : Probability for the dropout layers
+        max_seq_length (int) : Maximum token length for a sequence
+        n_head (int) : Number of heads
+        device (str) : Device to run the translation on
 
     Attributes:
         pe (torch.Tensor): Positional encoding tensor
@@ -39,18 +44,23 @@ class Transformer(nn.Module):
         generate(inputs, encoder_mask, sos_idx, eos_idx): Generate output sequence given input sequence
     """
 
-    def __init__(self, vocab_src_size, vocab_tgt_size):
+    def __init__(self, vocab_src_size: int, vocab_tgt_size: int, n_layers: int, d_model: int,
+                 dropout_rate: float, max_seq_length: int, n_head: int, device: str):
         super().__init__()
-        self.pe = get_positional_encoding()  # (1, S, D)
+        self.d_model = d_model
+        self.max_seq_length = max_seq_length
+        self.device = device
+
+        self.pe = get_positional_encoding(d_model, max_seq_length, device)  # (1, S, D)
 
         self.encoder_embedding = nn.Embedding(vocab_src_size, d_model)
         self.dropout_encoder = nn.Dropout(dropout_rate)
-        self.encoders = nn.ModuleList([Encoder() for _ in range(n_layers)])
+        self.encoders = nn.ModuleList([Encoder(d_model, dropout_rate, n_head) for _ in range(n_layers)])
         self.encoder_norm = nn.LayerNorm(d_model)
 
         self.decoder_embedding = nn.Embedding(vocab_tgt_size, d_model)
         self.dropout_decoder = nn.Dropout(dropout_rate)
-        self.decoders = nn.ModuleList([Decoder() for _ in range(n_layers)])
+        self.decoders = nn.ModuleList([Decoder(d_model, dropout_rate, n_head) for _ in range(n_layers)])
         self.decoder_norm = nn.LayerNorm(d_model)
 
         self.fn = nn.Linear(d_model, vocab_tgt_size)
@@ -67,7 +77,7 @@ class Transformer(nn.Module):
             torch.Tensor: Encoder output tensor of shape (B, S, E)
         """
         # (B, S) -> (B, S, E)
-        x = self.encoder_embedding(inputs) * math.sqrt(d_model)
+        x = self.encoder_embedding(inputs) * math.sqrt(self.d_model)
         x = x + self.pe[:, :x.shape[1], :].requires_grad_(False)
         x = self.dropout_encoder(x)
 
@@ -92,7 +102,7 @@ class Transformer(nn.Module):
             torch.Tensor: Decoder output tensor of shape (B, S, E)
         """
         # (B, S) -> (B, S, E)
-        x = self.decoder_embedding(decoder_input) * math.sqrt(d_model)
+        x = self.decoder_embedding(decoder_input) * math.sqrt(self.d_model)
         x = x + self.pe[:, :x.shape[1], :].requires_grad_(False)
         x = self.dropout_decoder(x)
 
@@ -137,11 +147,11 @@ class Transformer(nn.Module):
         Returns:
             torch.Tensor: Generated output sequence tensor of shape (S,)
         """
-        decoder_input = torch.tensor([[sos_idx]]).type_as(inputs).to(model_device)  # (1, 1)
+        decoder_input = torch.tensor([[sos_idx]]).type_as(inputs).to(self.device)  # (1, 1)
 
         encoder_output = self.encode(inputs, encoder_mask)  # (1, S, E)
 
-        while decoder_input.size(1) < max_seq_length:
+        while decoder_input.size(1) < self.max_seq_length:
             mask = torch.triu(torch.ones(1, decoder_input.shape[1], decoder_input.shape[1]), diagonal=1).type(torch.int)
             decoder_mask = (mask == 0).type_as(encoder_mask)  # (1, current_S, current_S)
 
@@ -152,7 +162,7 @@ class Transformer(nn.Module):
             next_word = torch.argmax(logits, dim=-1)  # (1,)
 
             # (1, current_S) -> (1, current_S + 1)
-            decoder_input = torch.cat((decoder_input, next_word.unsqueeze(0)), dim=1).to(model_device)
+            decoder_input = torch.cat((decoder_input, next_word.unsqueeze(0)), dim=1).to(self.device)
             if next_word.item() == eos_idx:
                 break
 
